@@ -1,0 +1,85 @@
+import re
+import hashlib
+import mysql.connector
+
+
+def conectar_banco():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="cadastro_db"
+    )
+
+
+def email_valido(email):
+    padrao = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return re.match(padrao, email) is not None
+
+
+def gerar_hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
+
+
+def cadastrar_usuario(nome, email, senha):
+    conexao = None
+    cursor = None
+    try:
+        conexao = conectar_banco()
+        cursor = conexao.cursor()
+
+        senha_hash = gerar_hash_senha(senha)
+        sql = "INSERT INTO usuarios (nome, email, senha) VALUES (%s, %s, %s)"
+        cursor.execute(sql, (nome, email, senha_hash))
+        conexao.commit()
+
+        print("Cadastro realizado com sucesso!")
+        return True
+
+    except mysql.connector.IntegrityError:
+        print("Esse email já está cadastrado.")
+        return False
+
+    except mysql.connector.Error as erro:
+        print(f"Erro ao acessar o banco de dados: {erro}")
+        return False
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conexao:
+            conexao.close()
+
+
+def coletar_dados():
+    nome = input("Digite seu nome: ").strip()
+    email = input("Digite seu email: ").strip()
+    senha = input("Digite sua senha: ").strip()
+    return nome, email, senha
+
+
+def main():
+    while True:
+        nome, email, senha = coletar_dados()
+
+        if not nome or not email or not senha:
+            print("Todos os campos são obrigatórios.")
+            continue
+
+        if not email_valido(email):
+            print("Digite um email válido.")
+            continue
+
+        if len(senha) < 6:
+            print("A senha precisa ter pelo menos 6 caracteres.")
+            continue
+
+        cadastrar_usuario(nome, email, senha)
+
+        resposta = input("Deseja cadastrar outro usuário? (s/n): ").strip().lower()
+        if resposta != 's':
+            break
+
+
+if __name__ == "__main__":
+    main()
